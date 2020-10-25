@@ -10,6 +10,7 @@
 #include <consensus/params.h>
 #include <consensus/validation.h>
 #include <core_io.h>
+#include <crypto/randomx.h>
 #include <key_io.h>
 #include <miner.h>
 #include <net.h>
@@ -22,6 +23,7 @@
 #include <script/descriptor.h>
 #include <script/script.h>
 #include <script/signingprovider.h>
+#include <seedmgr.h>
 #include <shutdown.h>
 #include <txmempool.h>
 #include <univalue.h>
@@ -111,6 +113,8 @@ static UniValue generateBlocks(const CTxMemPool& mempool, const CScript& coinbas
         nHeight = ::ChainActive().Height();
         nHeightEnd = nHeight+nGenerate;
     }
+
+    seedMgr.updateSeedHash();
     unsigned int nExtraNonce = 0;
     UniValue blockHashes(UniValue::VARR);
     while (nHeight < nHeightEnd && !ShutdownRequested())
@@ -123,9 +127,17 @@ static UniValue generateBlocks(const CTxMemPool& mempool, const CScript& coinbas
             LOCK(cs_main);
             IncrementExtraNonce(pblock, ::ChainActive().Tip(), nExtraNonce);
         }
-        while (nMaxTries > 0 && pblock->nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(GetPoWAlgoHash(*pblock), pblock->nBits, Params().GetConsensus()) && !ShutdownRequested()) {
+        uint32_t hashState = 0;
+        uint256 bestHash = UINT256_MAX();
+        int64_t hashStart = GetTimeMillis();
+        while (nMaxTries > 0 && pblock->nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(pblock->GetPoWAlgoHash(nHeight, Params().GetConsensus()), pblock->nBits, bestHash, Params().GetConsensus()) && !ShutdownRequested()) {
             ++pblock->nNonce;
             --nMaxTries;
+            if (GetTimeMillis() - hashStart > 1000) {
+               LogPrintf("hashing @ %dh/s (besthash: %s)\n", pblock->nNonce - hashState, bestHash.ToString().c_str());
+               hashState = pblock->nNonce;
+               hashStart = GetTimeMillis();
+            }
         }
         if (nMaxTries == 0 || ShutdownRequested()) {
             break;
@@ -749,8 +761,12 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
     result.pushKV("curtime", pblock->GetBlockTime());
     result.pushKV("bits", strprintf("%08x", pblock->nBits));
     result.pushKV("height", (int64_t)(pindexPrev->nHeight+1));
+
+    //! algorithm-specific parameters
     if (algo == ALGO_ODO)
         result.pushKV("odokey", (int64_t)OdoKey(consensusParams, pblock->GetBlockTime()));
+    if (algo == ALGO_RANDOMX)
+        result.pushKV("seed", seedMgr.getSeedHash().ToString());
 
     if (!pblocktemplate->vchCoinbaseCommitment.empty()) {
         result.pushKV("default_witness_commitment", HexStr(pblocktemplate->vchCoinbaseCommitment.begin(), pblocktemplate->vchCoinbaseCommitment.end()));

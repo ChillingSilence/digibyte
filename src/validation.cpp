@@ -14,6 +14,7 @@
 #include <consensus/tx_check.h>
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
+#include <crypto/randomx.h>
 #include <cuckoocache.h>
 #include <flatfile.h>
 #include <hash.h>
@@ -30,6 +31,7 @@
 #include <reverse_iterator.h>
 #include <script/script.h>
 #include <script/sigcache.h>
+#include <seedmgr.h>
 #include <shutdown.h>
 #include <timedata.h>
 #include <tinyformat.h>
@@ -1118,7 +1120,7 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
     return true;
 }
 
-bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams)
+bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, int nHeight, const Consensus::Params& consensusParams)
 {
     block.SetNull();
 
@@ -1136,7 +1138,8 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     }
 
     // Check the header
-    if (!CheckProofOfWork(GetPoWAlgoHash(block), block.nBits, consensusParams))
+    uint256 bestHashDummy;
+    if (!CheckProofOfWork(block.GetPoWAlgoHash(nHeight, consensusParams), block.nBits, bestHashDummy, consensusParams))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
 
     return true;
@@ -1150,7 +1153,7 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
         blockPos = pindex->GetBlockPos();
     }
 
-    if (!ReadBlockFromDisk(block, blockPos, consensusParams))
+    if (!ReadBlockFromDisk(block, blockPos, pindex->nHeight, consensusParams))
         return false;
     if (block.GetHash() != pindex->GetBlockHash())
         return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s at %s",
@@ -3362,8 +3365,14 @@ static bool FindUndoPos(BlockValidationState &state, int nFile, FlatFilePos &pos
 
 static bool CheckBlockHeader(const CBlockHeader& block, BlockValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
+    int nBlockHeight = 0;
+    const CBlockIndex* pindexPrev = LookupBlockIndex(block.hashPrevBlock);
+    if (pindexPrev)
+        nBlockHeight = pindexPrev->nHeight + 1;
+
     // Check proof of work matches claimed amount
-    if (!g_isoktogofast && fCheckPOW && !CheckProofOfWork(GetPoWAlgoHash(block), block.nBits, consensusParams))
+    uint256 bestHashDummy;
+    if (fCheckPOW && !CheckProofOfWork(block.GetPoWAlgoHash(nBlockHeight, consensusParams), block.nBits, bestHashDummy, consensusParams))
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "high-hash", "proof of work failed");
 
     return true;
@@ -3739,6 +3748,8 @@ bool BlockManager::AcceptBlockHeader(const CBlockHeader& block, BlockValidationS
 
     if (ppindex)
         *ppindex = pindex;
+
+    seedMgr.updateSeedHash(pindex);
 
     return true;
 }
@@ -4318,6 +4329,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
     LogPrintf("[0%%]..."); /* Continued */
     for (pindex = ::ChainActive().Tip(); pindex && pindex->pprev; pindex = pindex->pprev) {
         boost::this_thread::interruption_point();
+
         const int percentageDone = std::max(1, std::min(99, (int)(((double)(::ChainActive().Height() - pindex->nHeight)) / (double)nCheckDepth * (nCheckLevel >= 4 ? 50 : 100))));
         if (reportDone < percentageDone/10) {
             // report every 10% step
@@ -4376,6 +4388,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
     if (nCheckLevel >= 4) {
         while (pindex != ::ChainActive().Tip()) {
             boost::this_thread::interruption_point();
+            seedMgr.updateSeedHash();
             const int percentageDone = std::max(1, std::min(99, 100 - (int)(((double)(::ChainActive().Height() - pindex->nHeight)) / (double)nCheckDepth * 50)));
             if (reportDone < percentageDone/10) {
                 // report every 10% step
@@ -4384,6 +4397,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
             }
             uiInterface.ShowProgress(_("Verifying blocks...").translated, percentageDone, false);
             pindex = ::ChainActive().Next(pindex);
+            seedMgr.updateSeedHash();
             CBlock block;
             if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
                 return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
@@ -4810,7 +4824,8 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, FlatFi
                     while (range.first != range.second) {
                         std::multimap<uint256, FlatFilePos>::iterator it = range.first;
                         std::shared_ptr<CBlock> pblockrecursive = std::make_shared<CBlock>();
-                        if (ReadBlockFromDisk(*pblockrecursive, it->second, chainparams.GetConsensus()))
+                        int nCurrentHeight = ::BlockIndex()[pblockrecursive->hashPrevBlock]->nHeight + 1;
+                        if (ReadBlockFromDisk(*pblockrecursive, it->second, nCurrentHeight, chainparams.GetConsensus()))
                         {
                             LogPrint(BCLog::REINDEX, "%s: Processing out of order child %s of %s\n", __func__, pblockrecursive->GetHash().ToString(),
                                     head.ToString());

@@ -128,6 +128,8 @@ BITCOIN_CORE_H = \
   consensus/tx_verify.h \
   core_io.h \
   core_memusage.h \
+  crypto/moneroheader.h \
+  crypto/randomx.h \
   cuckoocache.h \
   flatfile.h \
   fs.h \
@@ -274,6 +276,7 @@ libbitcoin_server_a_SOURCES = \
   blockfilter.cpp \
   chain.cpp \
   consensus/tx_verify.cpp \
+  seedmgr.cpp \
   flatfile.cpp \
   httprpc.cpp \
   httpserver.cpp \
@@ -424,7 +427,10 @@ crypto_libbitcoin_crypto_base_a_SOURCES += \
   crypto/sph_types.h \
   crypto/scrypt.h \
   crypto/KeccakP-800-reference.c \
-  crypto/KeccakP-800-SnP.h
+  crypto/KeccakP-800-SnP.h \
+  crypto/moneroheader.cpp \
+  crypto/randomx.cpp
+
 
 crypto_libbitcoin_crypto_base_a_SOURCES += \
   crypto/randomx/aes_hash.cpp \

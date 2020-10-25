@@ -160,6 +160,11 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_ODO].nStartTime = 1556668800; // 1 May, 2019
         consensus.vDeployments[Consensus::DEPLOYMENT_ODO].nTimeout = 1588291200;    // 1 May, 2020
 
+        // Deployment of RandomX proof-of-work hardfork
+        consensus.vDeployments[Consensus::DEPLOYMENT_RANDOMX].bit = 8;
+        consensus.vDeployments[Consensus::DEPLOYMENT_RANDOMX].nStartTime = std::numeric_limits<int>::max();
+        consensus.vDeployments[Consensus::DEPLOYMENT_RANDOMX].nTimeout = 0;
+
         // Deployment of Equihash algo softfork
         //consensus.vDeployments[Consensus::DEPLOYMENT_EQUIHASH].bit = 3;
         //consensus.vDeployments[Consensus::DEPLOYMENT_EQUIHASH].nStartTime = 1489997089; // July, 2017 
@@ -171,6 +176,8 @@ public:
         //consensus.vDeployments[Consensus::DEPLOYMENT_ETHASH].nTimeout = 1521891345;    // October, 2018
 
         consensus.nOdoShapechangeInterval = 10*24*60*60; // 10 days
+
+        consensus.nEpochLength = std::numeric_limits<int>::max(); // TBD
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
@@ -269,10 +276,10 @@ public:
         consensus.BIP34Hash = uint256S("0xadd8ca420f557f62377ec2be6e6f47b96cf2e68160d58aeb7b73433de834cca0");
         consensus.BIP65Height = 4394880;
         consensus.BIP66Height = 4394880;
-        consensus.CSVHeight = 4394880;
-        consensus.SegwitHeight = 4394880;
-        consensus.MinBIP9WarningHeight = 4394880; // segwit activation height + miner confirmation window
-        consensus.powLimit = uint256S("007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.CSVHeight = 0;
+        consensus.SegwitHeight = 0;
+        consensus.MinBIP9WarningHeight = 0;
+        consensus.powLimit = uint256S("07ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
         consensus.nPowTargetSpacing = 60 / 4;
 
@@ -330,7 +337,7 @@ public:
         consensus.nLocalDifficultyAdjustment = 4; //difficulty adjustment per algo
 
         // DigiByte Hard Fork Block Heights
-        consensus.multiAlgoDiffChangeTarget = 100; // Block 145,000 MultiAlgo Hard Fork
+        consensus.multiAlgoDiffChangeTarget = 0; // Block 145,000 MultiAlgo Hard Fork
         consensus.alwaysUpdateDiffChangeTarget = 400; // Block 400,000 MultiShield Hard Fork
         consensus.workComputationChangeTarget = 1430; // Block 1,430,000 DigiSpeed Hard Fork
         consensus.algoSwapChangeTarget = 20000; // Block 9,000,000 Odo PoW Hard Fork
@@ -360,15 +367,15 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_NVERSIONBIPS].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
         consensus.vDeployments[Consensus::DEPLOYMENT_NVERSIONBIPS].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
 
-        // Reservation of version bits for future algos
-        consensus.vDeployments[Consensus::DEPLOYMENT_RESERVEALGO].bit = 12;
-        consensus.vDeployments[Consensus::DEPLOYMENT_RESERVEALGO].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
-        consensus.vDeployments[Consensus::DEPLOYMENT_RESERVEALGO].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
-
         // Deployment of Odo proof-of-work hardfork
         consensus.vDeployments[Consensus::DEPLOYMENT_ODO].bit = 6;
-        consensus.vDeployments[Consensus::DEPLOYMENT_ODO].nStartTime = 1551398400; // 1 Mar, 2019
+        consensus.vDeployments[Consensus::DEPLOYMENT_ODO].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
         consensus.vDeployments[Consensus::DEPLOYMENT_ODO].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
+
+        // Deployment of RandomX proof-of-work hardfork
+        consensus.vDeployments[Consensus::DEPLOYMENT_RANDOMX].bit = 8;
+        consensus.vDeployments[Consensus::DEPLOYMENT_RANDOMX].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
+        consensus.vDeployments[Consensus::DEPLOYMENT_RANDOMX].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
 
         // Deployment of Equihash algo softfork
         //consensus.vDeployments[Consensus::DEPLOYMENT_EQUIHASH].bit = 3;
@@ -381,6 +388,8 @@ public:
         //consensus.vDeployments[Consensus::DEPLOYMENT_ETHASH].nTimeout = 1521891345;    // October, 2018
 
         consensus.nOdoShapechangeInterval = 1*24*60*60; // 1 day
+
+        consensus.nEpochLength = 5; // An epoch lasts 5 blocks
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
@@ -398,10 +407,10 @@ public:
         m_assumed_chain_state_size = 2;
 
         uint32_t nNonce = 0;
-        genesis = CreateGenesisBlock(1603630339, nNonce, 0x1f7fffff, 549454338, 8000 * COIN);
+        genesis = CreateGenesisBlock(1603630339, nNonce, 0x2007ffff, 549454338, 8000 * COIN);
         while (UintToArith256(genesis.GetHash()) > UintToArith256(consensus.powLimit)) {
            nNonce++;
-           genesis = CreateGenesisBlock(1603630339, nNonce, 0x1f7fffff, 549454338, 8000 * COIN);
+           genesis = CreateGenesisBlock(1603630339, nNonce, 0x2007ffff, 549454338, 8000 * COIN);
         }
         consensus.hashGenesisBlock = genesis.GetHash();
 

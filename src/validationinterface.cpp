@@ -11,6 +11,7 @@
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <scheduler.h>
+#include <seedmgr.h>
 
 #include <future>
 #include <unordered_map>
@@ -188,6 +189,7 @@ void CMainSignals::UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockInd
                           pindexNew->GetBlockHash().ToString(),
                           pindexFork ? pindexFork->GetBlockHash().ToString() : "null",
                           fInitialDownload);
+    seedMgr.updateSeedHash();
 }
 
 void CMainSignals::TransactionAddedToMempool(const CTransactionRef& tx) {
@@ -215,6 +217,7 @@ void CMainSignals::BlockConnected(const std::shared_ptr<const CBlock> &pblock, c
     ENQUEUE_AND_LOG_EVENT(event, "%s: block hash=%s block height=%d", __func__,
                           pblock->GetHash().ToString(),
                           pindex->nHeight);
+    seedMgr.updateSeedHash(pindex);
 }
 
 void CMainSignals::BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
@@ -225,6 +228,7 @@ void CMainSignals::BlockDisconnected(const std::shared_ptr<const CBlock>& pblock
     ENQUEUE_AND_LOG_EVENT(event, "%s: block hash=%s block height=%d", __func__,
                           pblock->GetHash().ToString(),
                           pindex->nHeight);
+    seedMgr.updateSeedHash(pindex);
 }
 
 void CMainSignals::ChainStateFlushed(const CBlockLocator &locator) {
@@ -244,4 +248,5 @@ void CMainSignals::BlockChecked(const CBlock& block, const BlockValidationState&
 void CMainSignals::NewPoWValidBlock(const CBlockIndex *pindex, const std::shared_ptr<const CBlock> &block) {
     LOG_EVENT("%s: block hash=%s", __func__, block->GetHash().ToString());
     m_internals->Iterate([&](CValidationInterface& callbacks) { callbacks.NewPoWValidBlock(pindex, block); });
+    seedMgr.updateSeedHash(pindex);
 }

@@ -24,8 +24,7 @@ unsigned int GetNextWorkRequiredv4(const CBlockIndex* pindexLast, const CBlockHe
 unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params&);
 
 /** Check whether a block hash satisfies the proof-of-work requirement specified by nBits */
-bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&);
+bool CheckProofOfWork(uint256 hash, unsigned int nBits, uint256& bestHash, const Consensus::Params& params);
 const CBlockIndex* GetLastBlockIndexForAlgo(const CBlockIndex* pindex, const Consensus::Params&, int algo);
-uint256 GetPoWAlgoHash(const CBlockHeader& block);
 
 #endif // BITCOIN_POW_H

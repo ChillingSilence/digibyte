@@ -237,12 +237,6 @@ public:
         return *phashBlock;
     }
 
-    uint256 GetBlockPoWHash() const
-    {
-        CBlockHeader block = GetBlockHeader();
-        return GetPoWAlgoHash(block);
-    }
-
     int GetAlgo() const
     {
         CBlockHeader block = GetBlockHeader();

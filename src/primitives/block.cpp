@@ -3,16 +3,20 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-
 #include <arith_uint256.h>
 #include <crypto/hashgroestl.h>
 #include <crypto/hashodo.h>
 #include <crypto/hashqubit.h>
 #include <crypto/hashskein.h>
+#include <crypto/randomx.h>
+#include <crypto/moneroheader.h>
 #include <consensus/consensus.h>
 #include <chainparams.h>
+#include <seedmgr.h>
 #include <util/strencodings.h>
 #include <hash.h>
+
+const bool algodebug = true;
 
 uint256 CBlockHeader::GetHash() const
 {
@@ -33,12 +37,10 @@ int CBlockHeader::GetAlgo() const
             return ALGO_SKEIN;
         case BLOCK_VERSION_QUBIT:
             return ALGO_QUBIT;
-        //case BLOCK_VERSION_EQUIHASH:
-            //return ALGO_EQUIHASH;
-        //case BLOCK_VERSION_ETHASH:
-            //return ALGO_ETHASH;
         case BLOCK_VERSION_ODO:
             return ALGO_ODO;
+        case BLOCK_VERSION_RANDOMX:
+            return ALGO_RANDOMX;
     }
     return ALGO_UNKNOWN;
 }
@@ -50,46 +52,69 @@ uint32_t OdoKey(const Consensus::Params& params, uint32_t nTime)
 
 }
 
-uint256 CBlockHeader::GetPoWAlgoHash(const Consensus::Params& params) const
+uint256 CBlockHeader::GetPoWAlgoHash(int nHeight, const Consensus::Params& params) const
 {
+    seedMgr.updateSeedHashFromHeight(nHeight);
+
     switch (GetAlgo())
     {
         case ALGO_SHA256D:
         {
-            return GetHash();
+            auto debugHash = GetHash();
+            if (algodebug)
+                LogPrintf("SHA256D - %s\n", debugHash.ToString());
+            return debugHash;
         }
 
         case ALGO_SCRYPT:
         {
             uint256 thash;
             scrypt_1024_1_1_256(BEGIN(nVersion), BEGIN(thash));
+            if (algodebug)
+                LogPrintf("SCRYPT - %s\n", thash.ToString());
             return thash;
         }
 
         case ALGO_GROESTL:
         {
-            return HashGroestl(BEGIN(nVersion), END(nNonce));
+            auto debugHash = HashGroestl(BEGIN(nVersion), END(nNonce));
+            if (algodebug)
+                LogPrintf("GROESTL - %s\n", debugHash.ToString());
+            return debugHash;
         }
 
         case ALGO_SKEIN:
         {
-           return HashSkein(BEGIN(nVersion), END(nNonce));
+            auto debugHash = HashSkein(BEGIN(nVersion), END(nNonce));
+            if (algodebug)
+                LogPrintf("SKEIN - %s\n", debugHash.ToString());
+            return debugHash;
         }
 
-        case ALGO_QUBIT: {
-            return HashQubit(BEGIN(nVersion), END(nNonce));
+        case ALGO_QUBIT:
+        {
+            auto debugHash = HashQubit(BEGIN(nVersion), END(nNonce));
+            if (algodebug)
+                LogPrintf("QUBIT - %s\n", debugHash.ToString());
+            return debugHash;
         }
-
-        //case ALGO_EQUIHASH:
-            //return HashEquihash(BEGIN(nVersion), END(nNonce));
-
-        //case ALGO_ETHASH:
-            //return HashEthash(BEGIN(nVersion), END(nNonce));
 
         case ALGO_ODO:
         {
             uint32_t key = OdoKey(params, nTime);
-            return HashOdo(BEGIN(nVersion), END(nNonce), key);
+            auto debugHash = HashOdo(BEGIN(nVersion), END(nNonce), key);
+            if (algodebug)
+                LogPrintf("ODO - %s\n", debugHash.ToString());
+            return debugHash;
+        }
+
+        case ALGO_RANDOMX:
+        {
+            uint256 thash;
+            serialize_monero_hash(BEGIN(nVersion), BEGIN(thash));
+            if (algodebug)
+                LogPrintf("RANDOMX - %s\n", thash.ToString());
+            return thash;
         }
 
         case ALGO_UNKNOWN: {
@@ -105,11 +130,10 @@ uint256 CBlockHeader::GetPoWAlgoHash(const Consensus::Params& params) const
 std::string CBlock::ToString(const Consensus::Params& params) const
 {
     std::stringstream s;
-    s << strprintf("CBlock(hash=%s, ver=0x%08x, pow_algo=%d, pow_hash=%s, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%u)\n",
+    s << strprintf("CBlock(hash=%s, ver=0x%08x, pow_algo=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%u)\n",
         GetHash().ToString(),
         nVersion,
         GetAlgo(),
-        GetPoWAlgoHash(params).ToString(),
         hashPrevBlock.ToString(),
         hashMerkleRoot.ToString(),
         nTime, nBits, nNonce,
@@ -140,6 +164,8 @@ std::string GetAlgoName(int Algo)
             //return std::string("ethash");
         case ALGO_ODO:
             return std::string("odo");
+        case ALGO_RANDOMX:
+            return std::string("randomx");
     }
     return std::string("unknown");
 }
@@ -163,6 +189,8 @@ int GetAlgoByName(std::string strAlgo, int fallback)
         //return ALGO_ETHASH;
     else if (strAlgo == "odo" || strAlgo == "odosha3")
         return ALGO_ODO;
+    else if (strAlgo == "randomx" || strAlgo == "rx/0")
+        return ALGO_RANDOMX;
     else
         return fallback;
 }

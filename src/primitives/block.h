@@ -20,12 +20,11 @@ enum {
     ALGO_GROESTL  = 2,
     ALGO_SKEIN    = 3,
     ALGO_QUBIT    = 4,
-    //ALGO_EQUIHASH = 5,
-    //ALGO_ETHASH   = 6,
-    ALGO_ODO      = 7,
+    ALGO_ODO      = 5,
+    ALGO_RANDOMX  = 6,
     NUM_ALGOS_IMPL };
 
-const int NUM_ALGOS = 5;
+const int NUM_ALGOS = 6;
 
 enum {
     // primary version
@@ -38,9 +37,8 @@ enum {
     BLOCK_VERSION_GROESTL        = (4 << 8),
     BLOCK_VERSION_SKEIN          = (6 << 8),
     BLOCK_VERSION_QUBIT          = (8 << 8),
-    //BLOCK_VERSION_EQUIHASH       = (10 << 8),
-    //BLOCK_VERSION_ETHASH         = (12 << 8),
     BLOCK_VERSION_ODO            = (14 << 8),
+    BLOCK_VERSION_RANDOMX        = (12 << 8),
 };
 
 std::string GetAlgoName(int Algo);
@@ -61,12 +59,10 @@ inline int GetVersionForAlgo(int algo)
             return BLOCK_VERSION_SKEIN;
         case ALGO_QUBIT:
             return BLOCK_VERSION_QUBIT;
-        //case ALGO_EQUIHASH:
-            //return BLOCK_VERSION_EQUIHASH;
-        //case ALGO_ETHASH:
-            //return BLOCK_VERSION_ETHASH;
         case ALGO_ODO:
             return BLOCK_VERSION_ODO;
+        case ALGO_RANDOMX:
+            return BLOCK_VERSION_RANDOMX;
         default:
             assert(false);
             return 0;
@@ -135,7 +131,7 @@ public:
 
     uint256 GetHash() const;
 
-    uint256 GetPoWAlgoHash(const Consensus::Params& params) const;
+    uint256 GetPoWAlgoHash(int nHeight, const Consensus::Params& params) const;
 
     int64_t GetBlockTime() const
     {

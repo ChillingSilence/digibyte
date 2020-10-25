@@ -17,6 +17,7 @@
 #include <chainparams.h>
 #include <compat/sanity.h>
 #include <consensus/validation.h>
+#include <crypto/randomx.h>
 #include <fs.h>
 #include <httprpc.h>
 #include <httpserver.h>
@@ -41,6 +42,7 @@
 #include <scheduler.h>
 #include <script/sigcache.h>
 #include <script/standard.h>
+#include <seedmgr.h>
 #include <shutdown.h>
 #include <timedata.h>
 #include <torcontrol.h>
@@ -195,6 +197,9 @@ void Shutdown(NodeContext& node)
         client->flush();
     }
     StopMapPort();
+
+    // Destroy randomx vm
+    rxhash.shutoff();
 
     // Because these depend on each-other, we make sure that neither can be
     // using the other before destroying them.
@@ -1501,6 +1506,15 @@ bool AppInitMain(NodeContext& node)
         nMaxOutboundLimit = gArgs.GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET)*1024*1024;
     }
 
+    // ********************************************************* Step 6.5: initialize randomx cache/vm
+    rxhash.cacheinit();
+    if (!rxhash.is_cache_init)
+        return InitError(ResolveErrMsg("Error initializing RandomX cache.", "rx-cache"));
+
+    rxhash.vminit();
+    if (!rxhash.is_vm_init)
+        return InitError(ResolveErrMsg("Error initializing RandomX VM.", "rx-vm"));
+
     // ********************************************************* Step 7: load block chain
 
     fReindex = gArgs.GetBoolArg("-reindex", false);
@@ -1677,6 +1691,9 @@ bool AppInitMain(NodeContext& node)
                         break;
                     }
 
+                    //! update seedhash
+                    seedMgr.updateSeedHash();
+
                     if (!CVerifyDB().VerifyDB(chainparams, &::ChainstateActive().CoinsDB(), gArgs.GetArg("-checklevel", DEFAULT_CHECKLEVEL),
                                   gArgs.GetArg("-checkblocks", DEFAULT_CHECKBLOCKS))) {
                         strLoadError = _("Corrupted block database detected").translated;
@@ -1712,6 +1729,9 @@ bool AppInitMain(NodeContext& node)
             }
         }
     }
+
+    //! update seedhash
+    seedMgr.updateSeedHash();
 
     // As LoadBlockIndex can take several minutes, it's possible the user
     // requested to kill the GUI during the last operation. If so, exit.

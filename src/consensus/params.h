@@ -19,8 +19,7 @@ enum DeploymentPos {
     DEPLOYMENT_NVERSIONBIPS, // Deployment of BIP34, BIP65, and BIP66.
     DEPLOYMENT_RESERVEALGO, // Reservation of version bits for future algos
     DEPLOYMENT_ODO, // Odo hard fork
-    //DEPLOYMENT_EQUIHASH, // Equihash algo swap
-    //DEPLOYMENT_ETHASH, // Ethash algo swap
+    DEPLOYMENT_RANDOMX, // RandomX algo
     // NOTE: Also add new deployments to VersionBitsDeploymentInfo in versionbits.cpp
     MAX_VERSION_BITS_DEPLOYMENTS
 };
@@ -129,7 +128,8 @@ struct Params {
     uint32_t nOdoShapechangeInterval;
     uint256 nMinimumChainWork;
     uint256 defaultAssumeValid;
-    bool EnableRBF() const { return fRbfEnabled; }
+
+    int nEpochLength;
 };
 } // namespace Consensus
 
