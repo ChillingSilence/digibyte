@@ -1846,6 +1846,8 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
 
 bool IsAlgoActive(const CBlockIndex* pindexPrev, const Consensus::Params& consensus, int algo)
 {
+    if (IsTestnet())
+        return true;
     if (!pindexPrev)
         return algo == ALGO_SCRYPT;
     const int nHeight = pindexPrev->nHeight;
@@ -5210,6 +5212,16 @@ double GuessVerificationProgress(const ChainTxData& data, const CBlockIndex *pin
     }
 
     return std::min<double>(pindex->nChainTx / fTxTotal, 1.0);
+}
+
+//! Returns true if client is operating in testnet
+bool IsTestnet()
+{
+    bool result = Params().NetworkIDString() == CBaseChainParams::TESTNET;
+    //! always require blockheader validation under testnet
+    if (result)
+        g_isoktogofast = false;
+    return result;
 }
 
 class CMainCleanup

@@ -16,15 +16,17 @@
 
 inline unsigned int PowLimit(const Consensus::Params& params)
 {
-    return UintToArith256(params.powLimit).GetCompact();
+	return UintToArith256(params.powLimit).GetCompact();
 }
 
 unsigned int InitialDifficulty(const Consensus::Params& params, int algo)
 {
-    const auto& it = params.initialTarget.find(algo);
-    if (it == params.initialTarget.end())
-        return PowLimit(params);
-    return UintToArith256(it->second).GetCompact();
+	if (IsTestnet())
+		return PowLimit(params);
+	const auto& it = params.initialTarget.find(algo);
+	if (it == params.initialTarget.end())
+		return PowLimit(params);
+	return UintToArith256(it->second).GetCompact();
 }
 
 unsigned int GetNextWorkRequiredV1(const CBlockIndex* pindexLast, const Consensus::Params& params, int algo)
